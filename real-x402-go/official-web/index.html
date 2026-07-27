@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PayPerPrompt Official x402</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">PAYPERPROMPT · OFFICIAL SETTLEMENT LANE</p>
+    <h1>AI work, paid by HTTP 402.</h1>
+    <p class="lede">The official Go middleware verifies payment before Ollama analyzes the prompt. A settlement counts only when BaseScan confirms the USDC transfer between two distinct wallets.</p>
+
+    <section class="status-grid" aria-label="Runtime status">
+      <article><span>Mode</span><strong id="mode">Loading…</strong></article>
+      <article><span>Network</span><strong id="network">Loading…</strong></article>
+      <article><span>Local AI</span><strong id="ai">Loading…</strong></article>
+      <article><span>Price</span><strong id="price">Loading…</strong></article>
+    </section>
+
+    <section class="panel">
+      <div>
+        <p class="kicker">Receiving wallet</p>
+        <code id="merchant">Loading…</code>
+      </div>
+      <div class="flow" aria-label="x402 payment flow">
+        <span>1 · Challenge</span><span>2 · Sign</span><span>3 · Retry</span><span>4 · Settle</span><span>5 · AI Result</span>
+      </div>
+    </section>
+
+    <section class="panel proof-panel">
+      <div>
+        <p class="kicker">Explorer-verifiable proof</p>
+        <h2 id="proof-title">Waiting for official payment</h2>
+        <p id="proof-copy">Run the no-spend preflight, then explicitly authorize one test payment.</p>
+      </div>
+      <a id="explorer" class="button hidden" target="_blank" rel="noreferrer">Open BaseScan transaction</a>
+      <dl id="proof-fields" class="hidden">
+        <div><dt>Payer</dt><dd id="payer"></dd></div>
+        <div><dt>Merchant</dt><dd id="proof-merchant"></dd></div>
+        <div><dt>Transaction</dt><dd id="transaction"></dd></div>
+        <div><dt>AI model</dt><dd id="proof-model"></dd></div>
+      </dl>
+    </section>
+
+    <p id="error" class="error" role="status"></p>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

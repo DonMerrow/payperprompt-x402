@@ -1,0 +1,21 @@
+Type of work: Solidity security audit · enhanced
+
+Perform a defensive security audit of a multi-contract Solidity 0.8.20
+marketplace consisting of:
+
+- Marketplace: listing creation, purchase, cancellation, fee accounting.
+- Escrow: seller proceeds, buyer disputes, refunds, pull-payment withdrawal.
+- FeePolicy: bounded fee updates controlled by a two-step administrator.
+
+The complete submitted source should contain at least twelve named functions
+and all three contracts. Review every constructor, receive/fallback function,
+and named function. Build an actor and permission matrix, trace ETH through
+every state transition, identify cross-contract trust assumptions, rank
+findings by severity, describe exploit preconditions, and propose precise
+repairs and regression tests.
+
+Pay special attention to stale listings, replay, double settlement, fee bounds,
+reentrancy, failed recipients, accounting conservation, denial of service,
+front-running, and administrator transitions.
+
+Do not deploy, sign, request secrets, or call the result a formal audit.

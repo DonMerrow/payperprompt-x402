@@ -1,0 +1,22 @@
+Type of work: Generate Solidity contract · enhanced
+
+Generate a complete Solidity 0.8.20 time-locked team treasury.
+
+Requirements:
+- Exactly three immutable approvers.
+- Two distinct approvals are required for execution.
+- Proposals contain destination, ETH amount, calldata, earliest execution time,
+  expiry time, nonce, and executed/cancelled state.
+- Prevent duplicate approvals, replay, execution before the timelock,
+  execution after expiry, and execution more than once.
+- Allow cancellation only by an approver before execution.
+- Use custom errors, events, NatSpec, checks-effects-interactions, and an
+  explicit reentrancy guard.
+- Include receive(), proposal creation, approval, revocation, cancellation,
+  execution, proposal lookup, and approval lookup.
+- State actors, asset flow, trust assumptions, failure behavior, and required
+  Foundry tests.
+- No upgradeability, hidden owner, emergency drain, deployment, private keys,
+  or secret handling.
+
+Return one complete contract and supporting explanation.

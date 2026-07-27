@@ -1,0 +1,11 @@
+node_modules/
+.npm-cache/
+.env
+.env.local
+*.log
+go-core/data/
+real-x402-rust/target/
+receipt-verifier-rust/target/
+real-x402-go/proof/
+real-x402-go/.deps/
+real-x402-go/bin/

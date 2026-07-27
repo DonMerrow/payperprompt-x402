@@ -1,0 +1,11 @@
+{
+  "name": "payperprompt-x402",
+  "version": "0.41.0.1",
+  "private": true,
+  "description": "A public-safe prepared-work AI marketplace with exact x402 USDC payments.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  }
+}

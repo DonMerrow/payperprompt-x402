@@ -1,0 +1,23 @@
+Type of work: Generate Foundry/Hardhat tests
+
+Generate a complete compilable Foundry test suite for a Solidity 0.8.20
+governance treasury containing proposal creation, voting, vote revocation,
+quorum checks, timelocked execution, cancellation, expiry, ETH reception, and
+pull-payment refunds.
+
+Requirements:
+- Import every contract under test.
+- Instantiate each contract in setUp().
+- Use vm.deal for balances and low-level value-bearing calls for receive().
+- Use vm.prank or vm.startPrank for every actor-specific path.
+- Cover every constructor, receive/fallback function, and named function.
+- Include positive, authorization, duplicate-action, deadline boundary,
+  insufficient-balance, failed-recipient, replay, bounded fuzz, and invariant
+  tests.
+- Use testFuzz parameters with bound() or vm.assume().
+- Assert state, balances, events, and exact custom-error selectors.
+- Never call receive() directly, invent balance(), use vm.deposit, call an
+  undefined random(), deploy to a network, or request private keys.
+
+Return complete test files and a coverage matrix mapping each source element to
+its test.
