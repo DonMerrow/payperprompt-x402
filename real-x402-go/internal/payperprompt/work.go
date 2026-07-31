@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -215,11 +216,94 @@ func (w *Worker) completeOnce(ctx context.Context, system, request string) (Work
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&envelope); err != nil {
 		return WorkProduct{}, err
 	}
-	var product WorkProduct
-	if err := json.Unmarshal([]byte(strings.TrimSpace(envelope.Message.Content)), &product); err != nil {
+	product, err := decodeWorkProduct([]byte(strings.TrimSpace(envelope.Message.Content)))
+	if err != nil {
 		return WorkProduct{}, fmt.Errorf("decode paid work product: %w", err)
 	}
 	return product, nil
+}
+
+func decodeWorkProduct(data []byte) (WorkProduct, error) {
+	var product WorkProduct
+	if err := json.Unmarshal(data, &product); err == nil {
+		return product, nil
+	}
+	var wire struct {
+		TaskType           string              `json:"task_type"`
+		Title              string              `json:"title"`
+		Summary            string              `json:"summary"`
+		Deliverable        string              `json:"deliverable"`
+		ActionItems        json.RawMessage     `json:"action_items"`
+		Caveats            json.RawMessage     `json:"caveats"`
+		Coverage           json.RawMessage     `json:"coverage"`
+		SemanticValidation *SemanticValidation `json:"semantic_validation,omitempty"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return WorkProduct{}, err
+	}
+	actionItems, err := decodeStringList(wire.ActionItems, false)
+	if err != nil {
+		return WorkProduct{}, fmt.Errorf("action_items: %w", err)
+	}
+	caveats, err := decodeStringList(wire.Caveats, false)
+	if err != nil {
+		return WorkProduct{}, fmt.Errorf("caveats: %w", err)
+	}
+	coverage, err := decodeStringList(wire.Coverage, true)
+	if err != nil {
+		return WorkProduct{}, fmt.Errorf("coverage: %w", err)
+	}
+	return WorkProduct{
+		TaskType: wire.TaskType, Title: wire.Title, Summary: wire.Summary,
+		Deliverable: wire.Deliverable, ActionItems: actionItems,
+		Caveats: caveats, Coverage: coverage,
+		SemanticValidation: wire.SemanticValidation,
+	}, nil
+}
+
+func decodeStringList(raw json.RawMessage, includeObjectKeys bool) ([]string, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return []string{}, nil
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	result := []string{}
+	seen := map[string]bool{}
+	appendValue := func(value string) {
+		value = strings.TrimSpace(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	var collect func(any)
+	collect = func(current any) {
+		switch typed := current.(type) {
+		case string:
+			appendValue(typed)
+		case []any:
+			for _, item := range typed {
+				collect(item)
+			}
+		case map[string]any:
+			keys := make([]string, 0, len(typed))
+			for key := range typed {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				if includeObjectKeys {
+					appendValue(key)
+				}
+				collect(typed[key])
+			}
+		}
+	}
+	collect(value)
+	return result, nil
 }
 
 var solidityFunctionPattern = regexp.MustCompile(`(?m)\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)

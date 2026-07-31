@@ -102,6 +102,62 @@ func TestWorkerRetriesTruncatedJSON(t *testing.T) {
 	}
 }
 
+func TestWorkerNormalizesObjectCoverageFromOllama(t *testing.T) {
+	source := `Explain this Solidity contract.
+pragma solidity ^0.8.20;
+contract SimpleVault {
+    address public owner;
+    constructor() { owner = msg.sender; }
+    receive() external payable {}
+    function withdraw(uint256 amount) external {
+        require(msg.sender == owner, "not owner");
+        payable(owner).transfer(amount);
+    }
+}`
+	attempts := 0
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		content, _ := json.Marshal(map[string]any{
+			"task_type": "smart-contract-explain",
+			"title":     "SimpleVault explanation",
+			"summary":   "The deployer owns withdrawals and the vault accepts ETH.",
+			"deliverable": strings.Repeat(
+				"Constructor sets owner. Receive accepts Ether into the contract balance. Withdraw checks msg.sender and sends Ether to owner. Transfer is gas-brittle but is not by itself proof of reentrancy. ", 4,
+			),
+			"action_items": []string{"Consider call with explicit failure handling."},
+			"caveats":      []string{"The owner is fully trusted to withdraw vault funds."},
+			"coverage": map[string]any{
+				"constructor": "deployer ownership",
+				"receive":     "Ether receipt",
+				"withdraw":    "owner-only value flow",
+			},
+		})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{"content": string(content)},
+		})
+	}))
+	defer ollama.Close()
+
+	product, err := NewWorker(ollama.URL, "test-model").Complete(
+		context.Background(), "smart-contract-explain", source, "standard",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 1 {
+		t.Fatalf("object coverage should normalize without retry, attempts=%d", attempts)
+	}
+	joined := strings.Join(product.Coverage, ",")
+	for _, expected := range []string{"constructor", "receive", "withdraw"} {
+		if !strings.Contains(joined, expected) {
+			t.Fatalf("normalized coverage omitted %q: %v", expected, product.Coverage)
+		}
+	}
+	if product.SemanticValidation == nil || !product.SemanticValidation.Valid {
+		t.Fatalf("normalized work lacks semantic proof: %+v", product)
+	}
+}
+
 func TestGroundingGateRejectsLanguageTokensAsCoverage(t *testing.T) {
 	product := WorkProduct{
 		TaskType: "code-review", Title: "Review", Summary: "Review summary.",
