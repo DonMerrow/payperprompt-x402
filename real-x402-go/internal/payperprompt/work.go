@@ -32,6 +32,9 @@ func ValidatePreparedWork(product WorkProduct, taskType, request string) (WorkPr
 	if product.Coverage == nil {
 		product.Coverage = []string{}
 	}
+	normalizeSolidityTerminology(&product, request)
+	normalizeSolidityTestExecutablePatterns(&product, request)
+	normalizeSolidityTestBalanceAccess(&product, request)
 	normalizeSolidityTestCoverage(&product, request)
 	applyDeterministicSolidityReviewFindings(&product, request)
 	validation, err := validateWorkProduct(product, request)
@@ -84,7 +87,7 @@ func NewWorker(url, model string) *Worker {
 	return &Worker{
 		URL:    strings.TrimRight(url, "/"),
 		Model:  model,
-		Client: &http.Client{Timeout: 90 * time.Second},
+		Client: &http.Client{Timeout: 150 * time.Second},
 	}
 }
 
@@ -165,6 +168,9 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 			if product.Coverage == nil {
 				product.Coverage = []string{}
 			}
+			normalizeSolidityTerminology(&product, request)
+			normalizeSolidityTestExecutablePatterns(&product, request)
+			normalizeSolidityTestBalanceAccess(&product, request)
 			normalizeSolidityTestCoverage(&product, request)
 			applyDeterministicSolidityReviewFindings(&product, request)
 			validation, validationErr := validateWorkProduct(product, request)
@@ -185,7 +191,7 @@ func (w *Worker) completeOnce(ctx context.Context, system, request string) (Work
 		"options": map[string]any{
 			"temperature": 0.2,
 			"num_ctx":     8192,
-			"num_predict": 6144,
+			"num_predict": 4096,
 		},
 		"messages": []map[string]string{
 			{"role": "system", "content": system},
@@ -307,6 +313,45 @@ var solidityFunctionPattern = regexp.MustCompile(`(?m)\bfunction\s+([A-Za-z_][A-
 var solidityContractPattern = regexp.MustCompile(`(?m)\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)\b[^\n{;]*\{`)
 var solidityOwnerCheckPattern = regexp.MustCompile(`(?i)\brequire\s*\(\s*(?:msg\.sender\s*==\s*[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\s*==\s*msg\.sender)`)
 var solidityFixedTransferPattern = regexp.MustCompile(`(?i)\bpayable\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*\.\s*transfer\s*\(`)
+var solidityBalanceFunctionPattern = regexp.MustCompile(`(?i)\bfunction\s+balance\s*\(`)
+var foundryBalanceCallPattern = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\.balance\s*\(\s*\)`)
+var foundryDirectReceiveCallPattern = regexp.MustCompile(`(?m)^(\s*)([A-Za-z_][A-Za-z0-9_]*)\.receive\s*\{\s*value\s*:\s*([^}]+)\}\s*\(\s*\)\s*;`)
+var foundryLegacyExcessRevertPattern = regexp.MustCompile(`(?m)^(\s*)vm\.expectRevert\(\"(?:SafeMath: subtraction overflow|VM Exception: Arithmetic operation overflows)\"\);`)
+
+func normalizeSolidityTerminology(product *WorkProduct, source string) {
+	if product == nil || !strings.HasPrefix(product.TaskType, "smart-contract-") || !isSoliditySource(source) {
+		return
+	}
+	corrected := false
+	replace := func(value string) string {
+		for _, match := range solidityContractPattern.FindAllStringSubmatch(source, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			pattern := regexp.MustCompile(`(?i)\bclass\s+` + regexp.QuoteMeta(match[1]) + `\b`)
+			updated := pattern.ReplaceAllString(value, "contract "+match[1])
+			if updated != value {
+				corrected = true
+				value = updated
+			}
+		}
+		return value
+	}
+	product.Summary = replace(product.Summary)
+	product.Deliverable = replace(product.Deliverable)
+	for index := range product.ActionItems {
+		product.ActionItems[index] = replace(product.ActionItems[index])
+	}
+	for index := range product.Caveats {
+		product.Caveats[index] = replace(product.Caveats[index])
+	}
+	if corrected {
+		product.Caveats = append(
+			product.Caveats,
+			"Deterministic Go normalization corrected a model-generated Solidity declaration term before validation.",
+		)
+	}
+}
 
 func validateWorkProduct(product WorkProduct, request string) (SemanticValidation, error) {
 	validation := SemanticValidation{
@@ -1225,6 +1270,55 @@ func normalizeCoverageName(value string) string {
 	}
 	value = strings.TrimPrefix(value, "function ")
 	return strings.TrimSpace(value)
+}
+
+func normalizeSolidityTestExecutablePatterns(product *WorkProduct, source string) {
+	if product == nil || product.TaskType != "smart-contract-tests" ||
+		!strings.Contains(strings.ToLower(source), "foundry") {
+		return
+	}
+	corrected := foundryDirectReceiveCallPattern.ReplaceAllString(
+		product.Deliverable,
+		`${1}(bool sent,) = address(${2}).call{value: ${3}}("");
+${1}assertTrue(sent);`,
+	)
+	corrected = foundryLegacyExcessRevertPattern.ReplaceAllString(
+		corrected,
+		`${1}vm.expectRevert();`,
+	)
+	if corrected == product.Deliverable {
+		return
+	}
+	product.Deliverable = corrected
+	disclosure := "Go normalized direct receive() test calls to low-level value transfers and removed an inapplicable legacy arithmetic revert string before revalidation."
+	for _, caveat := range product.Caveats {
+		if caveat == disclosure {
+			return
+		}
+	}
+	product.Caveats = append(product.Caveats, disclosure)
+}
+
+func normalizeSolidityTestBalanceAccess(product *WorkProduct, source string) {
+	if product == nil || product.TaskType != "smart-contract-tests" {
+		return
+	}
+	lowerSource := strings.ToLower(source)
+	if !strings.Contains(lowerSource, "foundry") || solidityBalanceFunctionPattern.MatchString(source) {
+		return
+	}
+	corrected := foundryBalanceCallPattern.ReplaceAllString(product.Deliverable, "address($1).balance")
+	if corrected == product.Deliverable {
+		return
+	}
+	product.Deliverable = corrected
+	disclosure := "Go normalized invented contract.balance() calls to address(contract).balance because the submitted source declares no balance() function."
+	for _, caveat := range product.Caveats {
+		if caveat == disclosure {
+			return
+		}
+	}
+	product.Caveats = append(product.Caveats, disclosure)
 }
 
 func normalizeSolidityTestCoverage(product *WorkProduct, source string) {

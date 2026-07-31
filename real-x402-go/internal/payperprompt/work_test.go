@@ -618,6 +618,61 @@ func TestSmartContractGuidanceIsDefined(t *testing.T) {
 	}
 }
 
+func TestWorkerCorrectsClassTerminologyBeforeValidation(t *testing.T) {
+	source := `Explain this Solidity contract.
+pragma solidity ^0.8.20;
+contract SimpleVault {
+    address public owner;
+    constructor() { owner = msg.sender; }
+    receive() external payable {}
+    function withdraw(uint256 amount) external {
+        require(msg.sender == owner, "not owner");
+        payable(owner).transfer(amount);
+    }
+}`
+	attempts := 0
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		content, _ := json.Marshal(WorkProduct{
+			TaskType: "smart-contract-explain",
+			Title:    "SimpleVault explanation",
+			Summary:  "The deployer controls class SimpleVault.",
+			Deliverable: strings.Repeat(
+				"Class SimpleVault has a constructor that sets owner. Receive accepts Ether into the contract balance. Withdraw checks msg.sender and transfers Ether to owner. Transfer is gas-brittle but is not by itself proof of reentrancy. ", 4,
+			),
+			ActionItems: []string{},
+			Caveats:     []string{"The owner is trusted to withdraw funds."},
+			Coverage:    []string{"constructor", "receive", "withdraw"},
+		})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{"content": string(content)},
+		})
+	}))
+	defer ollama.Close()
+
+	product, err := NewWorker(ollama.URL, "test-model").Complete(
+		context.Background(), "smart-contract-explain", source, "standard",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 1 {
+		t.Fatalf("terminology correction should pass without retry, attempts=%d", attempts)
+	}
+	if strings.Contains(strings.ToLower(product.Deliverable), "class simplevault") {
+		t.Fatalf("incorrect Solidity terminology survived: %s", product.Deliverable)
+	}
+	if !strings.Contains(strings.ToLower(product.Deliverable), "contract simplevault") {
+		t.Fatalf("corrected contract terminology is missing: %s", product.Deliverable)
+	}
+	if !strings.Contains(strings.Join(product.Caveats, "\n"), "Deterministic Go normalization corrected") {
+		t.Fatalf("correction disclosure is missing: %v", product.Caveats)
+	}
+	if product.SemanticValidation == nil || !product.SemanticValidation.Valid {
+		t.Fatalf("corrected work lacks semantic proof: %+v", product)
+	}
+}
+
 func TestSolidityExplanationRequiresCompleteCoverage(t *testing.T) {
 	source := `pragma solidity ^0.8.20;
 contract SimpleVault {
@@ -806,6 +861,37 @@ contract TeamTreasury {
 	if _, err := validateWorkProduct(product, source); err == nil ||
 		!strings.Contains(err.Error(), "expired") {
 		t.Fatalf("large-contract omitted function was not rejected: %v", err)
+	}
+}
+
+func TestNormalizeSolidityTestBalanceAccessRepairsInventedGetter(t *testing.T) {
+	source := `Generate Foundry tests.
+pragma solidity ^0.8.20;
+contract SimpleVault { receive() external payable {} }`
+	product := WorkProduct{
+		TaskType: "smart-contract-tests",
+		Deliverable: `function testBalance() public {
+    assertEq(vault.balance(), 1 ether);
+}`,
+	}
+	normalizeSolidityTestBalanceAccess(&product, source)
+	if strings.Contains(product.Deliverable, "vault.balance()") ||
+		!strings.Contains(product.Deliverable, "address(vault).balance") {
+		t.Fatalf("invented balance getter was not normalized: %s", product.Deliverable)
+	}
+	if len(product.Caveats) != 1 || !strings.Contains(product.Caveats[0], "address(contract).balance") {
+		t.Fatalf("normalization was not disclosed: %v", product.Caveats)
+	}
+}
+
+func TestNormalizeSolidityTestBalanceAccessPreservesDeclaredBalanceFunction(t *testing.T) {
+	source := `Generate Foundry tests.
+pragma solidity ^0.8.20;
+contract Ledger { function balance() external view returns (uint256) { return 1; } }`
+	product := WorkProduct{TaskType: "smart-contract-tests", Deliverable: "ledger.balance()"}
+	normalizeSolidityTestBalanceAccess(&product, source)
+	if product.Deliverable != "ledger.balance()" {
+		t.Fatalf("declared balance function was incorrectly rewritten: %s", product.Deliverable)
 	}
 }
 
