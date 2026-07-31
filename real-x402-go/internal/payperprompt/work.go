@@ -97,10 +97,7 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 	requiredCoverage := solidityCoverageElements(request)
 	coverageInstruction := ""
 	if taskType == "smart-contract-tests" && len(requiredCoverage) > 0 {
-		coverageInstruction = "The test deliverable must provide executable evidence for every source element: " +
-			strings.Join(requiredCoverage, ", ") +
-			". Instantiate each contract under test, send value to receive when present, and directly invoke every named function. " +
-			"Do not merely describe the tests."
+		coverageInstruction = solidityTestGenerationInstruction(request, requiredCoverage)
 	}
 	solidityReviewInstruction := solidityCodeReviewInstruction(taskType, request)
 	baseSystem := strings.Join([]string{
@@ -1285,6 +1282,54 @@ func solidityTestCoverageEvidence(name, deliverable, source string) (bool, strin
 		}
 	}
 	return false, ""
+}
+
+func solidityTestGenerationInstruction(request string, requiredCoverage []string) string {
+	lower := strings.ToLower(request)
+	contractNames := []string{}
+	for _, match := range solidityContractPattern.FindAllStringSubmatch(request, -1) {
+		if len(match) > 1 {
+			contractNames = append(contractNames, match[1])
+		}
+	}
+	framework := "Foundry"
+	frameworkRequirements := "Return one complete compilable .t.sol file. Import {Test} from \"forge-std/Test.sol\"."
+	if strings.Contains(lower, "hardhat") && !strings.Contains(lower, "foundry") {
+		framework = "Hardhat"
+		frameworkRequirements = "Return one complete executable JavaScript or TypeScript Hardhat test file. Use ethers deployment fixtures and exact assertions."
+	}
+	contractRequirement := ""
+	if len(contractNames) > 0 {
+		if framework == "Foundry" {
+			imports := make([]string, 0, len(contractNames))
+			for _, name := range contractNames {
+				imports = append(imports, "import {"+name+"} from \"../src/"+name+".sol\";")
+			}
+			contractRequirement = " Include these contract-under-test imports exactly unless the complete submitted source is embedded in the test file: " + strings.Join(imports, " ")
+		} else {
+			contractRequirement = " Deploy and test these named contracts through ethers: " + strings.Join(contractNames, ", ") + "."
+		}
+	}
+	authorizationRequirement := ""
+	if containsAny(lower, "only the owner", "non-owner", "not owner", "unauthorized") || solidityOwnerCheckPattern.MatchString(request) {
+		if framework == "Foundry" {
+			authorizationRequirement = " For every unauthorized path, switch to a distinct caller with vm.prank(nonOwner) or vm.startPrank(nonOwner), then assert the failure with vm.expectRevert before the call."
+		} else {
+			authorizationRequirement = " For every unauthorized path, connect the contract to a distinct non-owner signer and assert the exact revert."
+		}
+	}
+	fuzzRequirement := ""
+	if containsAny(lower, "fuzz", "randomized", "randomised") {
+		if framework == "Foundry" {
+			fuzzRequirement = " Every fuzz test must constrain generated inputs in executable code with value = bound(value, minimum, maximum) or vm.assume(condition); descriptive prose is insufficient."
+		} else {
+			fuzzRequirement = " Every randomized input must be constrained to an explicit valid range before the contract call."
+		}
+	}
+	return "Generate executable " + framework + " tests, not a test plan. " + frameworkRequirements + contractRequirement +
+		" Instantiate every contract under test, send value to receive with a low-level value transfer when present, and directly invoke every required source element: " +
+		strings.Join(requiredCoverage, ", ") + "." + authorizationRequirement + fuzzRequirement +
+		" The deliverable must contain the complete test code and must not claim compilation or execution occurred."
 }
 
 func validateSolidityTestDeliverable(deliverable, source string) error {

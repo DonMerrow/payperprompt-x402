@@ -809,6 +809,44 @@ contract TeamTreasury {
 	}
 }
 
+func TestSolidityTestGenerationInstructionRequiresExecutableFoundryPatterns(t *testing.T) {
+	request := `Generate a complete Foundry test suite with a bounded fuzz test.
+pragma solidity ^0.8.20;
+contract SimpleVault {
+    address public owner;
+    constructor() { owner = msg.sender; }
+    function withdraw(uint256 amount) external {
+        require(msg.sender == owner, "not owner");
+    }
+}`
+	instruction := solidityTestGenerationInstruction(request, solidityCoverageElements(request))
+	for _, required := range []string{
+		`Import {Test} from "forge-std/Test.sol"`,
+		`import {SimpleVault} from "../src/SimpleVault.sol";`,
+		"vm.prank(nonOwner)",
+		"vm.expectRevert",
+		"bound(value, minimum, maximum)",
+		"constructor, withdraw",
+	} {
+		if !strings.Contains(instruction, required) {
+			t.Fatalf("generation instruction omitted %q: %s", required, instruction)
+		}
+	}
+}
+
+func TestSolidityTestGenerationInstructionDoesNotAffectHardhatSelection(t *testing.T) {
+	request := `Generate Hardhat tests.
+pragma solidity ^0.8.20;
+contract Counter { function increment() external {} }`
+	instruction := solidityTestGenerationInstruction(request, solidityCoverageElements(request))
+	if !strings.Contains(instruction, "Hardhat") || !strings.Contains(instruction, "ethers deployment fixtures") {
+		t.Fatalf("Hardhat instructions were not preserved: %s", instruction)
+	}
+	if strings.Contains(instruction, "forge-std") {
+		t.Fatalf("Hardhat request received Foundry imports: %s", instruction)
+	}
+}
+
 func TestSolidityContractPatternRequiresDeclarationBody(t *testing.T) {
 	prose := "Create a Solidity contract that implements an ERC-721 token."
 	if matches := solidityContractPattern.FindAllStringSubmatch(prose, -1); len(matches) != 0 {
