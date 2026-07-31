@@ -809,6 +809,18 @@ contract TeamTreasury {
 	}
 }
 
+func TestSolidityContractPatternRequiresDeclarationBody(t *testing.T) {
+	prose := "Create a Solidity contract that implements an ERC-721 token."
+	if matches := solidityContractPattern.FindAllStringSubmatch(prose, -1); len(matches) != 0 {
+		t.Fatalf("natural-language prose became a contract declaration: %v", matches)
+	}
+	source := "pragma solidity ^0.8.20; contract Token { }"
+	matches := solidityContractPattern.FindAllStringSubmatch(source, -1)
+	if len(matches) != 1 || matches[0][1] != "Token" {
+		t.Fatalf("actual contract declaration was not recognized: %v", matches)
+	}
+}
+
 func TestHardhatCoverageRecognizesDeployAndValueTransfer(t *testing.T) {
 	source := `pragma solidity ^0.8.20;
 contract SimpleVault {

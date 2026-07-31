@@ -221,6 +221,22 @@ func TestFreeWorkSuggestionUsesOllamaThenRejectsImmediateRepeat(t *testing.T) {
 	}
 }
 
+func TestSmartContractTestSuggestionRequiresExistingSourceAndOneFramework(t *testing.T) {
+	bad := "Create a Solidity contract that implements an ERC-721 token and provide test cases as JavaScript functions. Do not deploy or request secrets."
+	if err := validateWorkSuggestion("smart-contract-tests", bad); err == nil {
+		t.Fatal("test-only suggestion without existing source was accepted")
+	}
+	good := workSuggestionFallbacks["smart-contract-tests"][0]
+	if err := validateWorkSuggestion("smart-contract-tests", good); err != nil {
+		t.Fatalf("curated Foundry suggestion was rejected: %v", err)
+	}
+	for _, prompt := range workSuggestionFallbacks["smart-contract-tests"] {
+		if err := validateWorkSuggestion("smart-contract-tests", prompt); err != nil {
+			t.Fatalf("invalid curated test suggestion: %v", err)
+		}
+	}
+}
+
 func TestWorkSuggestionRateLimitIsInMemoryAndBounded(t *testing.T) {
 	store, err := OpenStore(filepath.Join(t.TempDir(), "state.json"))
 	if err != nil {

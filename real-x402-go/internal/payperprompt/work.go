@@ -307,7 +307,7 @@ func decodeStringList(raw json.RawMessage, includeObjectKeys bool) ([]string, er
 }
 
 var solidityFunctionPattern = regexp.MustCompile(`(?m)\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
-var solidityContractPattern = regexp.MustCompile(`(?m)\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)\b`)
+var solidityContractPattern = regexp.MustCompile(`(?m)\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)\b[^\n{;]*\{`)
 var solidityOwnerCheckPattern = regexp.MustCompile(`(?i)\brequire\s*\(\s*(?:msg\.sender\s*==\s*[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\s*==\s*msg\.sender)`)
 var solidityFixedTransferPattern = regexp.MustCompile(`(?i)\bpayable\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*\.\s*transfer\s*\(`)
 
