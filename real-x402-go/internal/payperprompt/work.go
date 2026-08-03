@@ -87,7 +87,7 @@ func NewWorker(url, model string) *Worker {
 	return &Worker{
 		URL:    strings.TrimRight(url, "/"),
 		Model:  model,
-		Client: &http.Client{Timeout: 150 * time.Second},
+		Client: &http.Client{Timeout: 240 * time.Second},
 	}
 }
 

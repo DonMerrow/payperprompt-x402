@@ -354,7 +354,7 @@ func NewGateway(cfg Config, store *Store) *Gateway {
 		cfg:            cfg,
 		store:          store,
 		client:         &http.Client{Timeout: 35 * time.Second},
-		workClient:     &http.Client{Timeout: 210 * time.Second},
+		workClient:     &http.Client{Timeout: 295 * time.Second},
 		preparedWork:   map[string]*PreparedWorkEscrow{},
 		suggestions:    map[string][]string{},
 		suggestionRate: map[string][]time.Time{},
@@ -1925,7 +1925,7 @@ func (g *Gateway) prepareOfficialWork(
 	if err != nil {
 		return nil, err
 	}
-	requestCtx, cancel := context.WithTimeout(ctx, 205*time.Second)
+	requestCtx, cancel := context.WithTimeout(ctx, 285*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(
 		requestCtx,
