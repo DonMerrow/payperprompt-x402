@@ -1663,14 +1663,14 @@ async function refreshOfficialProof() {
     const paidAI = proof.paid_ai || {};
     const provider = selected.provider || paidAI.provider || "Local Guard";
     const routeID = selected.route_id || paidAI.route_id || "guardrail-economy";
-    const model = plan.model || paidAI.ai_model || "recorded model unavailable";
+    const model = plan.model || paidAI.ai_model || "";
     const amount = `${proof.amount || "unknown"} ${proof.asset || "USDC"}`;
     const payer = abbreviateAddress(proof.payer);
     const merchant = abbreviateAddress(proof.merchant);
     const transaction = abbreviateTransaction(proof.transaction);
     chainProofAmount.textContent = amount;
     chainProofNetwork.textContent = `${proof.network_name || "Base Sepolia"} · ${proof.network || "eip155:84532"}`;
-    chainProofRoute.textContent = `${provider} · ${routeID} · ${model}`;
+    chainProofRoute.textContent = [provider, routeID, model].filter(Boolean).join(" · ");
     chainProofPayer.textContent = payer;
     chainProofMerchant.textContent = merchant;
     chainProofTransaction.textContent = transaction;
