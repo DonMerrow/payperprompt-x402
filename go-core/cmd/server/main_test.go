@@ -221,6 +221,18 @@ func TestFreeWorkSuggestionUsesOllamaThenRejectsImmediateRepeat(t *testing.T) {
 	}
 }
 
+func TestWorkSuggestionRejectsConflictingTopLevelResponseFormat(t *testing.T) {
+	bad := `Review this Django upload handler for traversal, authentication, image validation, and error-handling risks. Format your response as a structured JSON object with summary, security_issues, performance_issues, and implementation_changes fields.`
+	if err := validateWorkSuggestion("code-review", bad); err == nil {
+		t.Fatal("suggestion with conflicting top-level JSON schema was accepted")
+	}
+
+	good := `Review this Django upload handler for traversal, authentication, image validation, performance, and error-handling risks. Return a detailed Markdown review with prioritized findings, attack examples, and precise implementation recommendations.`
+	if err := validateWorkSuggestion("code-review", good); err != nil {
+		t.Fatalf("ordinary structured Markdown suggestion was rejected: %v", err)
+	}
+}
+
 func TestSmartContractTestSuggestionRequiresExistingSourceAndOneFramework(t *testing.T) {
 	bad := "Create a Solidity contract that implements an ERC-721 token and provide test cases as JavaScript functions. Do not deploy or request secrets."
 	if err := validateWorkSuggestion("smart-contract-tests", bad); err == nil {
@@ -687,7 +699,7 @@ func TestBrowserWalletReconciliationRecoversMissingLedgerExactlyOnce(t *testing.
 		BaseSepoliaRPC: rpc.URL, RustVerifier: rust.URL,
 		OfficialServerURL: "http://127.0.0.1:8082",
 		OfficialProofPath: proofPath, OfficialHistoryPath: historyPath,
-		OfficialPayer: payer, Merchant: merchant, OllamaModel: "llama3.1:8b",
+		OfficialPayer: payer, Merchant: merchant, OllamaModel: "qwen3-coder:30b",
 	}, store)
 	mux := http.NewServeMux()
 	gateway.Register(mux)

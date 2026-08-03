@@ -29,7 +29,7 @@ func main() {
 		FacilitatorURLs: facilitatorURLs(),
 		Network:         env("X402_NETWORK", "eip155:84532"),
 		OllamaURL:       env("OLLAMA_URL", "http://127.0.0.1:11434"),
-		OllamaModel:     env("OLLAMA_MODEL", "llama3.1:8b"),
+		OllamaModel:     env("OLLAMA_MODEL", "qwen3-coder:30b"),
 		WebDir:          env("PAYPERPROMPT_OFFICIAL_WEB_DIR", "official-web"),
 		ProofPath:       env("OFFICIAL_PROOF_PATH", "proof/official-settlement.json"),
 		MerchantAddress: env(
@@ -234,11 +234,11 @@ func main() {
 		service := configuredService
 		mux.HandleFunc("POST "+service.Path, func(w http.ResponseWriter, r *http.Request) {
 			var input struct {
-				Prompt                         string                     `json:"prompt"`
-				TaskType                       string                     `json:"task_type"`
-				PreparedWork                   *payperprompt.WorkProduct  `json:"prepared_work,omitempty"`
-				PreparedAnalysis               *payperprompt.Analysis     `json:"prepared_analysis,omitempty"`
-				PreparedWorkCommitmentSHA256   string                     `json:"prepared_work_commitment_sha256,omitempty"`
+				Prompt                       string                    `json:"prompt"`
+				TaskType                     string                    `json:"task_type"`
+				PreparedWork                 *payperprompt.WorkProduct `json:"prepared_work,omitempty"`
+				PreparedAnalysis             *payperprompt.Analysis    `json:"prepared_analysis,omitempty"`
+				PreparedWorkCommitmentSHA256 string                    `json:"prepared_work_commitment_sha256,omitempty"`
 			}
 			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid JSON prompt is required"})

@@ -67,7 +67,7 @@ See [the complete proof record](docs/official-x402-proof.md).
 - Go 1.24 or newer
 - Rust toolchain with Cargo
 - Python 3, `curl`, `unzip`, `rsync`, and `zip`
-- Ollama with `llama3.1:8b`
+- Ollama with `qwen3-coder:30b`
 - MetaMask, Coinbase Wallet, or Rabby
 - a disposable Base Sepolia payer with test ETH and USDC
 - a different public Base Sepolia merchant address
@@ -78,7 +78,7 @@ See [the complete proof record](docs/official-x402-proof.md).
 ### 1. Prepare Ollama and Cloudflare
 
 ```bash
-ollama pull llama3.1:8b
+ollama pull qwen3-coder:30b
 ollama serve
 ```
 

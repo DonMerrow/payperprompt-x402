@@ -198,7 +198,7 @@ func main() {
 	var plan *agentPlan
 	if strings.HasPrefix(mode, "agent-") {
 		analyzerURL := env("OLLAMA_URL", "http://127.0.0.1:11434")
-		model := env("OLLAMA_MODEL", "llama3.1:8b")
+		model := env("OLLAMA_MODEL", "qwen3-coder:30b")
 		analyzer := payperprompt.NewAnalyzer(analyzerURL, model)
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		analysis, aiUsed, analysisErr := analyzer.Analyze(ctx, prompt)
@@ -516,7 +516,7 @@ func printCatalog(baseURL string) error {
 }
 
 func printAnalysis(prompt string) {
-	model := env("OLLAMA_MODEL", "llama3.1:8b")
+	model := env("OLLAMA_MODEL", "qwen3-coder:30b")
 	analyzer := payperprompt.NewAnalyzer(env("OLLAMA_URL", "http://127.0.0.1:11434"), model)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

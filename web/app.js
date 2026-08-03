@@ -276,18 +276,14 @@ contract SimpleVault {
     title: "Generate Foundry or Hardhat tests",
     price: "Fixed route: Local Guard · $0.01",
     description: "Include the full source and enumerate the positive, negative, boundary, fuzz, and invariant behavior required.",
-    prompt: `Generate a complete Foundry test suite for this Solidity 0.8.20 contract.
+    prompt: `Generate a complete Foundry test suite for this Solidity 0.8.20 contract. Import forge-std/Test.sol and the contract under test. In setUp, instantiate SimpleVault and fund the required actors.
 
-Test requirements:
-- Instantiate SimpleVault in setUp and confirm the deployer becomes owner.
-- Send ETH directly to receive() and verify the vault balance.
-- Confirm only the owner can call withdraw.
-- Confirm a non-owner call reverts with "not owner".
-- Confirm withdrawal balance changes.
-- Confirm excess withdrawal reverts.
-- Include a bounded fuzz test.
-- Return a complete SimpleVault.t.sol file with clear assertions.
-- Do not deploy to a network or request private keys.
+Test constructor ownership, direct ETH transfer to receive, owner withdrawal, a non-owner revert using vm.prank(nonOwner) and vm.expectRevert(bytes("not owner")), excess withdrawal, and exact balance changes.
+
+Include testFuzzWithdraw(uint256 amount) with this executable bound before withdrawal:
+amount = bound(amount, 1, address(vault).balance);
+
+Return one complete compilable SimpleVault.t.sol file. Do not deploy or request private keys, seed phrases, or secrets.
 
 pragma solidity ^0.8.20;
 

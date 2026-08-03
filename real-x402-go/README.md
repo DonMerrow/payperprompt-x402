@@ -85,7 +85,7 @@ The script uses `~/Downloads/x402-official-readonly/go` when present. Otherwise 
 
 ## Exact Launch Order
 
-Ollama must be running with `llama3.1:8b`.
+Ollama must be running with `qwen3-coder:30b`.
 
 Terminal 1 — receiving server. This wallet is public and must differ from the payer:
 

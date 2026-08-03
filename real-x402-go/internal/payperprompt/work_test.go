@@ -1106,7 +1106,7 @@ contract SimpleVault {
     }
 }`
 	attempts := 0
-	sawRejectedDraft := false
+	sawFreshCorrection := false
 	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attempts++
 		var requestPayload struct {
@@ -1119,8 +1119,10 @@ contract SimpleVault {
 			t.Fatal(err)
 		}
 		if attempts > 1 && len(requestPayload.Messages) > 1 &&
-			strings.Contains(requestPayload.Messages[1].Content, "REJECTED DRAFT FROM THE PREVIOUS ATTEMPT") {
-			sawRejectedDraft = true
+			strings.Contains(requestPayload.Messages[0].Content, "Generate a fresh answer") &&
+			strings.Contains(requestPayload.Messages[0].Content, "constructor, receive, withdraw") &&
+			!strings.Contains(requestPayload.Messages[1].Content, "REJECTED DRAFT FROM THE PREVIOUS ATTEMPT") {
+			sawFreshCorrection = true
 		}
 		deliverable := strings.Repeat(
 			"Constructor sets owner. Receive accepts Ether into the contract balance. Withdraw checks owner and transfers to owner. ",
@@ -1156,8 +1158,8 @@ contract SimpleVault {
 	if attempts != 2 {
 		t.Fatalf("expected one corrective retry, got %d attempts", attempts)
 	}
-	if !sawRejectedDraft {
-		t.Fatal("corrective retry did not receive the rejected draft")
+	if !sawFreshCorrection {
+		t.Fatal("corrective retry did not receive fresh source-grounded obligations")
 	}
 	if product.SemanticValidation == nil || !product.SemanticValidation.Valid {
 		t.Fatalf("corrected work lacks semantic proof: %+v", product)
@@ -1220,6 +1222,32 @@ contract SimpleVaultTest is Test {
 	}
 	if product.SemanticValidation == nil || !product.SemanticValidation.Valid {
 		t.Fatalf("third-attempt test suite lacks semantic proof: %+v", product)
+	}
+}
+
+func TestSolidityWorkCoverageInstructionRequiresExactElements(t *testing.T) {
+	request := `Explain this contract.
+pragma solidity ^0.8.20;
+contract SimpleVault {
+    constructor() {}
+    receive() external payable {}
+    function withdraw(uint256 amount) external {}
+}`
+
+	required := solidityCoverageElements(request)
+	instruction := solidityWorkCoverageInstruction(
+		"smart-contract-explain",
+		request,
+		required,
+	)
+
+	for _, element := range []string{"constructor", "receive", "withdraw"} {
+		if !strings.Contains(instruction, element) {
+			t.Fatalf("instruction omitted %q: %s", element, instruction)
+		}
+	}
+	if !strings.Contains(instruction, "coverage JSON array") {
+		t.Fatalf("instruction omitted exact coverage-array requirement: %s", instruction)
 	}
 }
 

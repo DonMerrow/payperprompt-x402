@@ -16,7 +16,7 @@ export X402_FACILITATOR_URL="${X402_FACILITATOR_URL:-https://x402.org/facilitato
 # Optional ordered redundancy:
 # export X402_FACILITATOR_URLS="https://primary.example,https://backup.example"
 export OLLAMA_URL="${OLLAMA_URL:-http://127.0.0.1:11434}"
-export OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.1:8b}"
+export OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-coder:30b}"
 unset EVM_PRIVATE_KEY
 
 go run ./cmd/official-server

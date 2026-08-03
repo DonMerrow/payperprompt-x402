@@ -98,10 +98,11 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 		return WorkProduct{}, errors.New("work request is required")
 	}
 	requiredCoverage := solidityCoverageElements(request)
-	coverageInstruction := ""
-	if taskType == "smart-contract-tests" && len(requiredCoverage) > 0 {
-		coverageInstruction = solidityTestGenerationInstruction(request, requiredCoverage)
-	}
+	coverageInstruction := solidityWorkCoverageInstruction(
+		taskType,
+		request,
+		requiredCoverage,
+	)
 	solidityReviewInstruction := solidityCodeReviewInstruction(taskType, request)
 	baseSystem := strings.Join([]string{
 		"You are the paid work engine for PayPerPrompt.",
@@ -123,22 +124,22 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 		taskGuidance(taskType),
 	}, " ")
 	var lastValidationErr error
-	var lastDraft WorkProduct
 	for attempt := 0; attempt < 4; attempt++ {
 		system := baseSystem
 		attemptRequest := request
 		if attempt > 0 {
-			system += " The previous draft was rejected by the deterministic pre-settlement semantic validator: " +
-				lastValidationErr.Error() +
-				". Return a complete replacement that corrects every missing element or contradiction."
+			system += " A previous answer failed deterministic validation. Generate a fresh answer from the original source and requirements; do not reproduce or paraphrase the rejected answer."
+			if coverageInstruction != "" {
+				system += " Re-read and satisfy every exact Solidity coverage obligation: " +
+					coverageInstruction
+			}
 			if solidityReviewInstruction != "" {
 				system += " Re-read and satisfy every source-derived Solidity review obligation: " +
 					solidityReviewInstruction
 			}
-			rejectedJSON, _ := json.Marshal(lastDraft)
-			attemptRequest += "\n\nREJECTED DRAFT FROM THE PREVIOUS ATTEMPT:\n" +
-				string(rejectedJSON) +
-				"\n\nReplace this draft completely. Do not merely explain how to fix it."
+			if solidityOwnerCheckPattern.MatchString(request) {
+				system += " The source contains a msg.sender authorization check. Explicitly describe that access control and never claim that access control is absent."
+			}
 		}
 		product, err := w.completeOnce(ctx, system, attemptRequest)
 		if err != nil {
@@ -146,7 +147,6 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 				return WorkProduct{}, ctx.Err()
 			}
 			lastValidationErr = err
-			lastDraft = WorkProduct{}
 			continue
 		}
 		product.TaskType = taskType
@@ -180,7 +180,6 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 			}
 			lastValidationErr = validationErr
 		}
-		lastDraft = product
 	}
 	return WorkProduct{}, fmt.Errorf("pre-settlement work quality gate rejected the AI deliverable: %w", lastValidationErr)
 }
@@ -1376,6 +1375,18 @@ func solidityTestCoverageEvidence(name, deliverable, source string) (bool, strin
 		}
 	}
 	return false, ""
+}
+
+func solidityWorkCoverageInstruction(taskType, request string, requiredCoverage []string) string {
+	if len(requiredCoverage) == 0 || !isSoliditySource(request) {
+		return ""
+	}
+	if taskType == "smart-contract-tests" {
+		return solidityTestGenerationInstruction(request, requiredCoverage)
+	}
+	return "Address every required Solidity source element in its own explicit labeled deliverable section, using these exact names: " +
+		strings.Join(requiredCoverage, ", ") +
+		". The coverage JSON array must also contain each of those exact names. Do not merely imply coverage through surrounding prose."
 }
 
 func solidityTestGenerationInstruction(request string, requiredCoverage []string) string {

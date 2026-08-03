@@ -54,7 +54,7 @@ umask 077
   echo "X402_FACILITATOR_URL=https://x402.org/facilitator"
   echo "BASE_SEPOLIA_RPC_URL=https://sepolia.base.org"
   echo "OLLAMA_URL=http://127.0.0.1:11434"
-  echo "OLLAMA_MODEL=llama3.1:8b"
+  echo "OLLAMA_MODEL=qwen3-coder:30b"
   echo "CLOUDFLARED_BIN=/tmp/cloudflared"
 } >"$CONFIG_FILE"
 chmod 600 "$CONFIG_FILE"
