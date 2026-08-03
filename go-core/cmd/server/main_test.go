@@ -551,6 +551,7 @@ func TestPublicConfigExposesOnlyBrowserWalletConfiguration(t *testing.T) {
 		Merchant:      "0x2222222222222222222222222222222222222222",
 		Network:       "eip155:84532",
 		Asset:         "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+		OllamaModel:   "qwen3-coder:30b",
 		ReceiptSecret: "must-not-be-public",
 	}, store)
 	mux := http.NewServeMux()
@@ -571,6 +572,7 @@ func TestPublicConfigExposesOnlyBrowserWalletConfiguration(t *testing.T) {
 		"expected_payer": "0x1111111111111111111111111111111111111111",
 		"merchant":       "0x2222222222222222222222222222222222222222",
 		"network":        "eip155:84532",
+		"ollama_model":   "qwen3-coder:30b",
 		"signing":        "trusted browser wallet only",
 	}
 	for field, value := range expected {

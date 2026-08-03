@@ -43,6 +43,7 @@ const officialProofConclusion = document.querySelector("#official-proof-conclusi
 const chainProofAmount = document.querySelector("#chain-proof-amount");
 const chainProofNetwork = document.querySelector("#chain-proof-network");
 const chainProofRoute = document.querySelector("#chain-proof-route");
+const currentWorkModel = document.querySelector("#current-work-model");
 const chainProofPayer = document.querySelector("#chain-proof-payer");
 const chainProofMerchant = document.querySelector("#chain-proof-merchant");
 const chainProofTransaction = document.querySelector("#chain-proof-transaction");
@@ -771,6 +772,7 @@ async function loadPublicDemoConfig() {
       throw new Error("Public testnet payer and merchant are not configured.");
     }
     expectedOfficialPayer = data.expected_payer;
+    currentWorkModel.textContent = data.ollama_model || "Unavailable";
     await refreshOfficialWorkAudit();
     return data;
   } catch (error) {
@@ -1661,7 +1663,7 @@ async function refreshOfficialProof() {
     const paidAI = proof.paid_ai || {};
     const provider = selected.provider || paidAI.provider || "Local Guard";
     const routeID = selected.route_id || paidAI.route_id || "guardrail-economy";
-    const model = plan.model || paidAI.ai_model || "llama3.1:8b";
+    const model = plan.model || paidAI.ai_model || "recorded model unavailable";
     const amount = `${proof.amount || "unknown"} ${proof.asset || "USDC"}`;
     const payer = abbreviateAddress(proof.payer);
     const merchant = abbreviateAddress(proof.merchant);

@@ -541,6 +541,7 @@ func (g *Gateway) publicConfig(w http.ResponseWriter, _ *http.Request) {
 		"merchant":       g.cfg.Merchant,
 		"network":        g.cfg.Network,
 		"asset":          g.cfg.Asset,
+		"ollama_model":   g.cfg.OllamaModel,
 		"wallets":        []string{"MetaMask", "Coinbase Wallet", "Rabby"},
 		"signing":        "trusted browser wallet only",
 	})
