@@ -354,7 +354,7 @@ func NewGateway(cfg Config, store *Store) *Gateway {
 		cfg:            cfg,
 		store:          store,
 		client:         &http.Client{Timeout: 35 * time.Second},
-		workClient:     &http.Client{Timeout: 295 * time.Second},
+		workClient:     &http.Client{Timeout: 550 * time.Second},
 		preparedWork:   map[string]*PreparedWorkEscrow{},
 		suggestions:    map[string][]string{},
 		suggestionRate: map[string][]time.Time{},
@@ -1639,11 +1639,11 @@ func (g *Gateway) startOfficialPlanJob(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if active >= 2 {
+	if active >= 1 {
 		g.planJobMu.Unlock()
 		writeJSON(w, http.StatusTooManyRequests, map[string]any{
 			"started": false, "payment_signed": false, "payment_sent": false,
-			"reason": "Two AI preparation jobs are already running. Wait for one to finish before starting another.",
+			"reason": "The local AI is currently preparing another job. Wait for it to finish, then retry. No wallet signature or payment was requested.",
 		})
 		return
 	}
@@ -1675,7 +1675,7 @@ func (g *Gateway) planJobPreparedWorkReusable(result map[string]any) bool {
 }
 
 func (g *Gateway) runOfficialPlanJob(jobID string, input OfficialPlanInput) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	status, result := g.planRunner(ctx, input)
 	now := time.Now().UTC()
@@ -1688,7 +1688,7 @@ func (g *Gateway) runOfficialPlanJob(jobID string, input OfficialPlanInput) {
 	}
 	if ctx.Err() != nil {
 		jobStatus = "failed"
-		reason = "AI preparation exceeded the five-minute background limit; no wallet signature or payment was requested."
+		reason = "AI preparation exceeded the ten-minute background limit; no wallet signature or payment was requested."
 		result = map[string]any{
 			"planned": false, "payment_signed": false, "payment_sent": false,
 			"reason": reason,
@@ -1925,7 +1925,7 @@ func (g *Gateway) prepareOfficialWork(
 	if err != nil {
 		return nil, err
 	}
-	requestCtx, cancel := context.WithTimeout(ctx, 285*time.Second)
+	requestCtx, cancel := context.WithTimeout(ctx, 540*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(
 		requestCtx,

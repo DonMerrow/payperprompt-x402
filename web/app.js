@@ -943,7 +943,7 @@ async function prepareOfficialWalletPayment() {
     walletPaymentStatus.textContent =
       "Ollama is preparing and validating the work in the background. No wallet signature or payment is possible while this runs…";
 
-    const deadline = Date.now() + 5 * 60 * 1000 + 30 * 1000;
+    const deadline = Date.now() + 10 * 60 * 1000 + 30 * 1000;
     let pollDelay = Number(started.poll_after_ms || 1500);
     let transientFailures = 0;
     let data = null;

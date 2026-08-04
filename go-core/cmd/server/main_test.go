@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1373,6 +1374,30 @@ func TestOfficialPlanJobRunsAsynchronouslyAndDeduplicates(t *testing.T) {
 	second := start()
 	if first["job_id"] != second["job_id"] || second["reused_active_job"] != true {
 		t.Fatalf("duplicate preparation did not reuse the active job: first=%v second=%v", first, second)
+	}
+
+	busyBody := `{"prompt":"Explain a different contract.","task_type":"smart-contract-explain","expected_payer":"` + payer + `"}`
+	busyRecorder := httptest.NewRecorder()
+	busyRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/api/official/plan-jobs",
+		strings.NewReader(busyBody),
+	)
+	busyRequest.Header.Set("Content-Type", "application/json")
+	mux.ServeHTTP(busyRecorder, busyRequest)
+	if busyRecorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("different concurrent job returned %d instead of 429: %s",
+			busyRecorder.Code, busyRecorder.Body.String())
+	}
+	var busy map[string]any
+	if err := json.Unmarshal(busyRecorder.Body.Bytes(), &busy); err != nil {
+		t.Fatal(err)
+	}
+	if busy["started"] != false ||
+		busy["payment_signed"] != false ||
+		busy["payment_sent"] != false ||
+		!strings.Contains(fmt.Sprint(busy["reason"]), "currently preparing another job") {
+		t.Fatalf("busy response crossed the payment boundary or lacked a clear reason: %v", busy)
 	}
 
 	jobID, _ := first["job_id"].(string)
