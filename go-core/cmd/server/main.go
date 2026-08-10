@@ -3907,9 +3907,11 @@ func (g *Gateway) analyze(ctx context.Context, prompt string) (Analysis, bool, e
 		},
 	}
 	payload, _ := json.Marshal(request)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.OllamaURL+"/api/chat", bytes.NewReader(payload))
+	requestCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(requestCtx, http.MethodPost, g.cfg.OllamaURL+"/api/chat", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
-	response, err := g.client.Do(req)
+	response, err := g.workClient.Do(req)
 	if err != nil {
 		fallback := fallbackAnalysis(prompt)
 		return fallback, false, err

@@ -129,6 +129,9 @@ func (w *Worker) Complete(ctx context.Context, taskType, request string, quality
 		attemptRequest := request
 		if attempt > 0 {
 			system += " A previous answer failed deterministic validation. Generate a fresh answer from the original source and requirements; do not reproduce or paraphrase the rejected answer."
+			if lastValidationErr != nil {
+				system += " The previous deterministic validation failure was: " + lastValidationErr.Error() + ". Correct that exact failure in the deliverable itself; do not merely claim that it was corrected in metadata."
+			}
 			if coverageInstruction != "" {
 				system += " Re-read and satisfy every exact Solidity coverage obligation: " +
 					coverageInstruction
