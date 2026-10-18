@@ -40,4 +40,4 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 )
 
-replace github.com/x402-foundation/x402/go/v2 => /home/icreate/payperprompt-x402-public/real-x402-go/.deps/x402-main/go
+replace github.com/x402-foundation/x402/go/v2 => ./.deps/x402-90688e52e58ae9185f2860988bd2c46d2801ceda/go
