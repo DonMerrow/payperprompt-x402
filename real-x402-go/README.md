@@ -81,7 +81,55 @@ cd ~/payperprompt-x402/real-x402-go
 ./scripts/prepare-official.sh
 ```
 
-The script uses `~/Downloads/x402-official-readonly/go` when present. Otherwise it downloads the version pinned in `go.mod`. It runs all Go tests before reporting success.
+Requirements: Go 1.24.0 or newer (allow Go toolchain selection for dependencies),
+Bash, `curl`, `unzip`, and `sha256sum`.
+
+This project imports the official `github.com/x402-foundation/x402/go/v2`
+library for its x402 payment protocol implementation. The original preparation
+workaround used a source ZIP because the requested `v2.0.0` module tag was not
+available. The ZIP is dependency source, not a separate server.
+
+Preparation now downloads exactly upstream commit
+`90688e52e58ae9185f2860988bd2c46d2801ceda` (July 24, 2026), from:
+
+```text
+https://github.com/x402-foundation/x402/archive/90688e52e58ae9185f2860988bd2c46d2801ceda.zip
+SHA-256: 2204efbdb16f674e8189d5bbd202c4eacd76da9e78b31c637028db86cef9599e
+```
+
+This revision was selected from the original build period; it is not claimed to
+be a recovered hash of the original unpinned download.
+
+The script verifies downloaded and cached ZIP bytes **before extraction**, then
+recreates `.deps/x402-<commit>/go` from those verified bytes. The project-relative
+`replace` entry in `go.mod` tells Go where to resolve imports of the official
+library. Nothing needs copying into `src`, and no owner-specific home path is
+required. Other Go modules retain their normal `go.sum` verification. Preparation
+runs `go mod tidy`, `go mod verify`, all project Go tests, and builds
+`bin/payperprompt`; it does not start a server or submit a payment.
+
+Old `.deps/x402-main` and Downloads copies are no longer selected automatically.
+`X402_OFFICIAL_GO_DIR` is rejected rather than silently accepting unverified
+source. A checksum mismatch stops preparation; remove only the named cached ZIP
+and rerun to fetch the pinned archive. Do not replace the expected checksum merely
+to silence a failure. GitHub archive packaging changes may also require review.
+
+To update x402 intentionally, review the upstream changes, choose an exact commit,
+verify the archive, update the commit/checksum in `scripts/prepare-official.sh`
+and the relative path in `go.mod`, then rerun preparation and commit resulting
+`go.mod`/`go.sum` changes. Update this README with the new provenance. Pinning
+prevents silent source changes; it is not a claim that all dependency code has
+been audited.
+
+To check the download rejection behavior without network access or a real Go
+build, run:
+
+```bash
+bash scripts/test-prepare-integrity.sh
+```
+
+This exercises corrupt downloads, corrupt cached archives, and rejected local
+source overrides. Each must stop before any Go command runs.
 
 ## Exact Launch Order
 
